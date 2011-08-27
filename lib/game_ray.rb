@@ -23,9 +23,6 @@ class Map
     @tiles = Array.new(@grid_height) { Array.new(@grid_width) }
     possible_tiles = [
         *([Tile::Grass] * 50),
-        *([Tile::Earthwork] * 0),
-        *([Tile::Dirt] * 0),
-        *([Tile::Sand] * 0),
         *([Tile::Foxhole] * 5)
     ]
     @grid_height.times do |y|
@@ -56,15 +53,6 @@ class Tile
   
   class Foxhole < Tile
     def sheet_pos; [0, 5]; end
-    
-    def add_object(object)      
-      super(object)
-      object.y += WIDTH / 2
-    end
-    
-    def draw_on(window)
-      super(window)
-    end
   end
   
   class Earthwork < Dirt
@@ -78,10 +66,6 @@ class Tile
   
   class EarthworkTop < Tile
     def sheet_pos; [0, 3]; end
-    
-    def object_position
-      @sprite.pos + [0, 4]
-    end
   end
   
   WIDTH, HEIGHT = 32, 16
@@ -89,12 +73,6 @@ class Tile
   include Helper
   
   attr_reader :objects
-  
-  @@sprites = {}
-  
-  def object_position
-    @sprite.pos
-  end
   
   def initialize(grid_position, options = {}) 
     unless defined? @@sprite
@@ -107,7 +85,6 @@ class Tile
     @grid_position = grid_position.to_vector2
     @sprite.x = (@grid_position.y + @grid_position.x) * WIDTH / 2
     @sprite.y = (@grid_position.y - @grid_position.x) * HEIGHT / 2
-    @sprite.origin = [WIDTH / 2, HEIGHT / 2]
     
     @on_top_of = options[:on_top_of]
     @sprite.y -= WIDTH / 2 if @on_top_of
@@ -130,16 +107,11 @@ class World < Scene
   
   def setup   
     @map = Map.new 100, 50     
-    @camera = window.default_view      
-    @fps_text = Text.new("0", size: 14)    
-    @camera.center = [@map.to_rect.center.x, 0] 
-  end
-    
-  def zoom
-    window.size.height.to_f / @camera.size.height
+    @camera = window.default_view        
+    @camera.center = [@map.to_rect.center.x / 2, @map.to_rect.center.y / 2] 
   end
   
-  def register       
+  def register   
     render do |win| 
       win.with_view @camera do
         @map.draw_on(win)          
