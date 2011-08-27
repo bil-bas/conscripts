@@ -21,19 +21,19 @@ class Map
   def initialize(grid_width, grid_height)
     @grid_width, @grid_height = grid_width, grid_height
     @tiles = Array.new(@grid_height) { Array.new(@grid_width) }
-	possible_tiles = [
-		*([Tile::Grass] * 50),
-		*([Tile::Earthwork] * 0),
-		*([Tile::Dirt] * 0),
-		*([Tile::Sand] * 0),
-		*([Tile::Foxhole] * 5)
-	]
+    possible_tiles = [
+        *([Tile::Grass] * 50),
+        *([Tile::Earthwork] * 0),
+        *([Tile::Dirt] * 0),
+        *([Tile::Sand] * 0),
+        *([Tile::Foxhole] * 5)
+    ]
     @grid_height.times do |y|
       @grid_width.times do |x|
          @tiles[y][x] = possible_tiles.sample.new [x, y]
-		 @tiles[y][x] = Tile::Foxhole.new [x, y] if y % 9 == 2
-		 
-		 @tiles[y][x] = Tile::Earthwork.new [x, y] if y % 7 == 5
+         @tiles[y][x] = Tile::Foxhole.new [x, y] if y % 9 == 2
+         
+         @tiles[y][x] = Tile::Earthwork.new [x, y] if y % 7 == 5
       end
     end
   end
@@ -56,31 +56,31 @@ class Tile
   
   class Foxhole < Tile
     def sheet_pos; [0, 5]; end
-	
-	def add_object(object)	  
-	  super(object)
-	  object.y += WIDTH / 2
-	end
-	
-	def draw_on(window)
-	  super(window)
-	end
+    
+    def add_object(object)      
+      super(object)
+      object.y += WIDTH / 2
+    end
+    
+    def draw_on(window)
+      super(window)
+    end
   end
   
   class Earthwork < Dirt
     def sheet_pos; [0, 0]; end
-	
-	def initialize(grid_position) 
-	  super(grid_position)
-	  add_block_on_top EarthworkTop
-	end	
+    
+    def initialize(grid_position) 
+      super(grid_position)
+      add_block_on_top EarthworkTop
+    end    
   end
   
   class EarthworkTop < Tile
     def sheet_pos; [0, 3]; end
-	
+    
     def object_position
-	  @sprite.pos + [0, 4]
+      @sprite.pos + [0, 4]
     end
   end
   
@@ -97,31 +97,31 @@ class Tile
   end
   
   def initialize(grid_position, options = {}) 
-	unless defined? @@sprite
-	  @@sprite = sprite image(image_path("tiles.png"))
-	  @@sprite.sheet_size = [10, 10]
-	end
-	
+    unless defined? @@sprite
+      @@sprite = sprite image(image_path("tiles.png"))
+      @@sprite.sheet_size = [10, 10]
+    end
+    
     @sprite = @@sprite.dup
-	@sprite.sheet_pos = sheet_pos
-	@grid_position = grid_position.to_vector2
+    @sprite.sheet_pos = sheet_pos
+    @grid_position = grid_position.to_vector2
     @sprite.x = (@grid_position.y + @grid_position.x) * WIDTH / 2
-	@sprite.y = (@grid_position.y - @grid_position.x) * HEIGHT / 2
-	@sprite.origin = [WIDTH / 2, HEIGHT / 2]
-	
-	@on_top_of = options[:on_top_of]
-	@sprite.y -= WIDTH / 2 if @on_top_of
+    @sprite.y = (@grid_position.y - @grid_position.x) * HEIGHT / 2
+    @sprite.origin = [WIDTH / 2, HEIGHT / 2]
+    
+    @on_top_of = options[:on_top_of]
+    @sprite.y -= WIDTH / 2 if @on_top_of
     @objects = []
-	@block_on_top = @block_underneath = nil
+    @block_on_top = @block_underneath = nil
   end
   
   def add_block_on_top(type)
-	@block_on_top = type.new(@grid_position, on_top_of: self)
+    @block_on_top = type.new(@grid_position, on_top_of: self)
   end
   
   def draw_on(window)
     window.draw @sprite
-	@block_on_top.draw_on(window) if @block_on_top
+    @block_on_top.draw_on(window) if @block_on_top
   end
 end
 
@@ -131,22 +131,21 @@ class World < Scene
   def setup   
     @map = Map.new 100, 50     
     @camera = window.default_view      
-	@fps_text = Text.new("0", size: 14)	
-	@camera.center = [@map.to_rect.center.x, 0] 
+    @fps_text = Text.new("0", size: 14)    
+    @camera.center = [@map.to_rect.center.x, 0] 
   end
     
   def zoom
-	window.size.height.to_f / @camera.size.height
+    window.size.height.to_f / @camera.size.height
   end
   
-  def register	   
+  def register       
     render do |win| 
       win.with_view @camera do
-        @map.draw_on(win)  		
+        @map.draw_on(win)          
       end
     end
-  end
-  
+  end  
 end
 
 
