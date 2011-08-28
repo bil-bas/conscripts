@@ -50,7 +50,7 @@ class GameObject
   
   def initialize(scene, sprite, position) 
     @sprite = sprite
-	@sprite.pos = position
+    @sprite.pos = position
   
     @z = 0 
     
@@ -70,7 +70,7 @@ class GameObject
         Color.new(brightness, brightness, brightness) 
       end
       @@shadow = sprite img
-	  @@shadow.scale = [0.5, 0.25]
+      @@shadow.scale = [0.5, 0.25]
       @@shadow.origin = center
       @@shadow.blend_mode = :multiply
     end
@@ -127,10 +127,10 @@ end
 
 class StaticObject < GameObject
     attr_reader :tile
-	def initialize(scene, sprite, grid_position) 
-      @tile = scene.map.tile_at_grid(*grid_position)	  
-	  super(scene, sprite, @tile.object_position)
-	  @tile.add_object(self)
+    def initialize(scene, sprite, grid_position) 
+      @tile = scene.map.tile_at_grid(*grid_position)      
+      super(scene, sprite, @tile.object_position)
+      @tile.add_object(self)
     end
 end
 
@@ -141,7 +141,7 @@ class Bloke < DynamicObject
     sprite = sprite image_path("characters.png"), at: position    
     sprite.sheet_size = [3, 3]
     sprite.origin = [sprite.sprite_width / 2, sprite.sprite_height - 1]
-	
+    
     super(scene, sprite, position)
   end
   
@@ -168,14 +168,14 @@ end
 
 class Tree < StaticObject
   def initialize(scene, grid_position)
-	unless defined? @@sprite
-	  @@sprite = sprite image(image_path("characters.png"))
-	  @@sprite.sheet_size = [3, 3]
-	  @@sprite.origin = [17, 32]
-	end
-	
+    unless defined? @@sprite
+      @@sprite = sprite image(image_path("characters.png"))
+      @@sprite.sheet_size = [3, 3]
+      @@sprite.origin = [17, 32]
+    end
+    
     sprite = @@sprite.dup
-	sprite.sheet_pos = [rand(3), 0]
+    sprite.sheet_pos = [rand(3), 0]
      
     super(scene, sprite, grid_position)
   end  
@@ -191,19 +191,19 @@ class Map
   def initialize(grid_width, grid_height)
     @grid_width, @grid_height = grid_width, grid_height
     @tiles = Array.new(@grid_height) { Array.new(@grid_width) }
-	possible_tiles = [
-		*([Tile::Grass] * 50),
-		*([Tile::Earthwork] * 0),
-		*([Tile::Dirt] * 0),
-		*([Tile::Sand] * 0),
-		*([Tile::Foxhole] * 5)
-	]
+    possible_tiles = [
+        *([Tile::Grass] * 50),
+        *([Tile::Earthwork] * 0),
+        *([Tile::Dirt] * 0),
+        *([Tile::Sand] * 0),
+        *([Tile::Foxhole] * 5)
+    ]
     @grid_height.times do |y|
       @grid_width.times do |x|
          @tiles[y][x] = possible_tiles.sample.new [x, y]
-		 @tiles[y][x] = Tile::Foxhole.new [x, y] if y % 9 == 2
-		 
-		 @tiles[y][x] = Tile::Earthwork.new [x, y] if y % 7 == 5
+         @tiles[y][x] = Tile::Foxhole.new [x, y] if y % 9 == 2
+         
+         @tiles[y][x] = Tile::Earthwork.new [x, y] if y % 7 == 5
       end
     end    
   end
@@ -223,7 +223,9 @@ class Map
   end
   
   def tile_at_position(x, y)
-    tile_at_grid(((x - y * 12.0) / 24.0).to_i, (y / 6.0).to_i)
+    x += Tile::WIDTH / 2
+    tile_at_grid([[x / Tile::WIDTH - y / Tile::HEIGHT, 0].max, @grid_width - 1].min.floor,
+                 [[x / Tile::WIDTH + y / Tile::HEIGHT, 0].max, @grid_height - 1].min.floor)
   end
   
   def tile_at_grid(x, y)
@@ -238,19 +240,19 @@ class Map
   def each_visible(view, &block)
 =begin
     rect = view.rect
-		
+        
     min_y = [((rect.y - 16) / 8).floor, 0].max
     max_y = [((rect.y + rect.height) / 4.0).ceil, @tiles.size - 1].min
-	
-	visible_rows = @tiles[min_y..max_y]
-	if visible_rows
-	  visible_rows.each do |row|
-	    #min_x = [((rect.x - 16) / tile_size).floor, 0].max
-		#max_x = [((rect.x + rect.width) / 24).ceil, @tiles.first.size - 1].min
-		tiles = row#[min_x..max_x]
-		tiles.reverse_each {|tile| yield tile } if tiles
-	  end
-	end
+    
+    visible_rows = @tiles[min_y..max_y]
+    if visible_rows
+      visible_rows.each do |row|
+        #min_x = [((rect.x - 16) / tile_size).floor, 0].max
+        #max_x = [((rect.x + rect.width) / 24).ceil, @tiles.first.size - 1].min
+        tiles = row#[min_x..max_x]
+        tiles.reverse_each {|tile| yield tile } if tiles
+      end
+    end
 =end
    @tiles.each {|r| r.reverse_each {|t| yield t } }
   end
@@ -263,11 +265,11 @@ class Map
   end
   
   # Draws all tiles (only) visible in the window.
-  def draw_on(window, min_y, max_y)
+  def draw_on(window, rect)
     window.clear Color.new(30, 10, 10, 255)
-    
-    min_y -= Tile::HEIGHT
-    max_y += Tile::HEIGHT * 2
+
+    min_y = rect.y - Tile::HEIGHT
+    max_y = rect.y + rect.height + Tile::HEIGHT * 2
     
     @buffers.to_a.each do |y, buffer|
       window.draw buffer if y > min_y and y < max_y
@@ -290,32 +292,32 @@ class Tile
   
   class Foxhole < Tile
     def sheet_pos; [0, 4]; end
-	
-	def add_object(object)	  
-	  super(object)
-	  object.y += WIDTH / 2
-	end
-	
-	def draw_on(window)
-	  super(window)
-	  draw_objects_on(window)
-	end
+    
+    def add_object(object)      
+      super(object)
+      object.y += WIDTH / 2
+    end
+    
+    def draw_on(window)
+      super(window)
+      draw_objects_on(window)
+    end
   end
   
   class Earthwork < Dirt
     def sheet_pos; [0, 0]; end
-	
-	def initialize(grid_position) 
-	  super(grid_position)
-	  add_block_on_top EarthworkTop
-	end	
+    
+    def initialize(grid_position) 
+      super(grid_position)
+      add_block_on_top EarthworkTop
+    end    
   end
   
   class EarthworkTop < Tile
     def sheet_pos; [0, 3]; end
-	
+    
     def object_position
-	  @sprite.pos + [0, 6]
+      @sprite.pos + [0, 6]
     end
   end
   
@@ -323,7 +325,7 @@ class Tile
   
   include Helper
   
-  attr_reader :objects, :block_on_top, :block_underneath
+  attr_reader :objects, :block_on_top, :block_underneath, :grid_position
   
   @@sprites = {}
   
@@ -331,6 +333,10 @@ class Tile
   
   def object_position
     @sprite.pos
+  end
+  
+  def position
+    @sprite.position
   end
   
   def sprites
@@ -342,53 +348,86 @@ class Tile
   end
   
   def initialize(grid_position, options = {}) 
-	unless defined? @@sprite
-	  @@sprite = sprite image(image_path("tiles.png"))
-	  @@sprite.sheet_size = [10, 10]
-	end
-	
+    unless defined? @@sprite
+      @@sprite = sprite image(image_path("tiles.png"))
+      @@sprite.sheet_size = [10, 10]
+    end
+    
     @sprite = @@sprite.dup
-	@sprite.sheet_pos = sheet_pos
-	@grid_position = grid_position.to_vector2
+    @sprite.sheet_pos = sheet_pos
+    @grid_position = grid_position.to_vector2
     @sprite.x = (@grid_position.y + @grid_position.x) * WIDTH / 2
-	@sprite.y = (@grid_position.y - @grid_position.x) * HEIGHT / 2
-	@sprite.origin = [WIDTH / 2, HEIGHT / 2]
-	
-	@on_top_of = options[:on_top_of]
+    @sprite.y = (@grid_position.y - @grid_position.x) * HEIGHT / 2
+    @sprite.origin = [WIDTH / 2, HEIGHT / 2]
+    
+    @on_top_of = options[:on_top_of]
     @z = @on_top_of ? HEIGHT : 0
-	@sprite.y -= @z
+    @sprite.y -= @z
     @objects = []
-	@block_on_top = @block_underneath = nil
+    @block_on_top = @block_underneath = nil
   end
   
   def add_block_on_top(type)
-	@block_on_top = type.new(@grid_position, on_top_of: self)
+    @block_on_top = type.new(@grid_position, on_top_of: self)
   end
   
   def add_object(object)
     if @block_on_top
-	  @block_on_top.add_object(object)
-	else
+      @block_on_top.add_object(object)
+    else
       @objects << object
-	  object.position = object_position
-	end
+      object.position = object_position
+    end
   end
   
   def draw_on(window)
     window.draw @sprite
-	draw_shadows_on(window)
-	draw_objects_on(window)
-	@block_on_top.draw_on(window) if @block_on_top
-  end
-	
-  def draw_objects_on(window) 
-	@objects.each { |o| o.draw_on window }
+    draw_shadows_on(window)
+    draw_objects_on(window)
+    @block_on_top.draw_on(window) if @block_on_top
+  end 
+end
+
+class MouseSelection
+  include Helper
+  
+  attr_reader :tile
+  
+  def initialize
+    unless defined? @@sprite
+      @@sprite = sprite image(image_path("tiles.png"))
+      @@sprite.sheet_size = [10, 10]
+    end
+    
+    @sprite = @@sprite.dup
+    @sprite.sheet_pos = [0, 5]
+    @sprite.origin = [Tile::WIDTH / 2, Tile::HEIGHT / 2]
+    color = @sprite.color
+    color.alpha = 50
+    @sprite.color = color
   end
   
-  def draw_shadows_on(window)
-    @objects.each { |o| o.draw_shadow_on window }
+  def tile=(tile)
+    @tile = tile
+    position = tile.grid_position.to_vector2
+    
+    @sprite.x = (position.y + position.x) * Tile::WIDTH / 2
+    @sprite.y = (position.y - position.x) * Tile::HEIGHT / 2
+    
+    case @tile
+      when Tile::Foxhole
+      when Tile::Earthwork
+        @sprite.y -= Tile::HEIGHT * 2
+      else
+        @sprite.y -= Tile::HEIGHT
+    end
+  end
+  
+  def draw_on(window)
+    window.draw @sprite
   end
 end
+
 
 class World < Scene
   attr_reader :map
@@ -402,11 +441,13 @@ class World < Scene
     #100.times do |i|
     #  Enemy.new(self, [i * 16, rand * window.size.height])
     #end
-	    
+        
     # Make some static objects.
     200.times do
       Tree.new(self, [rand(@map.grid_width), rand(@map.grid_height)])
     end
+    
+    @mouse_selection = MouseSelection.new
     
     @map.buffer_drawing
    
@@ -414,10 +455,10 @@ class World < Scene
       
     @half_size = window.size / 2
       
-	@fps_text = Text.new("0", size: 14)
-	
-	@camera.center = [@map.to_rect.center.x, 0] 
-	
+    @fps_text = Text.new("0", size: 14)
+    
+    @camera.center = [@map.to_rect.center.x, 0] 
+    
     init_fps
   end
   
@@ -429,83 +470,66 @@ class World < Scene
   end
   
   def zoom
-	window.size.height.to_f / @camera.size.height
+    window.size.height.to_f / @camera.size.height
   end
   
   def register   
-  	on :wheel_motion do |pos, delta|
-	  center = @camera.center
-	  
-	  if delta > 0
-		  delta.times do
-			@camera.zoom_by 2 unless zoom == 8
-		  end
-	  elsif delta < 0
-		  (-delta).times do
-			@camera.unzoom_by 2 unless zoom == 0.25
-		  end
-	  end
-	  
-	  @camera.center = center
-	end
-	
-    always do
-	  start_at = Time.now
-		if holding? :left
-		  @camera.x -= 10.0 / zoom
-		elsif holding? :right
-		  @camera.x += 10.0 / zoom
-		end	
-		if holding? :up
-		  @camera.y -= 10.0 / zoom
-		elsif holding? :down
-		  @camera.y += 10.0 / zoom
-		end
-	        
-      # Move the camera to the player position, but don't let the user see over the edge of the map.
-      #camera_x = [[@player.x, @half_size.w].max, @map.to_rect.width - @half_size.w].min
-      #camera_y = [[@player.y, @half_size.h].max, @map.to_rect.height - @half_size.h].min
-      #@camera.center = [camera_x, camera_y] 
+    on :wheel_motion do |pos, delta|
+      center = @camera.center
       
-=begin
-      # Checking for collision on the screen is significantly slower than just rendering everything.
-      clip_rect = @camera.rect
-      @visible_objects = @dynamic_objects.select {|o| o.to_rect.collide? clip_rect }
-
-      # Update visible dynamic objects and stop them moving off the map. Others will just sleep off the side of the map.
-      @visible_objects.each(&:update)
-      rect = @map.to_rect
-      max_x, max_y = rect.width, rect.height
-      @visible_objects.each do |obj|
-        half_w = obj.width / 2
-        obj.x = [[obj.x, half_w].max, max_x - half_w].min
-        obj.y = [[obj.y, half_w].max, max_y - half_w].min
+      if delta > 0
+          delta.times do
+            @camera.zoom_by 2 unless zoom == 8
+          end
+      elsif delta < 0
+          (-delta).times do
+            @camera.unzoom_by 2 unless zoom == 0.25
+          end
       end
-
-      @visible_objects += @map.visible_objects(@camera)
-      @visible_objects.sort_by!(&:z_order)
-=end
-          
-      @used_time += (Time.now - start_at).to_f
-      recalculate_fps
-
-	  @fps_text.string = "Zoom: #{zoom} FPS: #{@fps.round} [#{@potential_fps.round}]"
+      
+      @camera.center = center
     end
+  
+    always { update }
+  end
+  
+  def update
+    start_at = Time.now
     
-    render do |win| 
-      start_at = Time.now 
-      
-      win.with_view @camera do
-        @map.draw_on(win, @camera.rect.y, @camera.rect.y + @camera.rect.height)  		
-
-        #@visible_objects.each {|obj| obj.draw_shadow_on win }      
-        #@visible_objects.each {|obj| obj.draw_on win }
-      end
-	  
-	  win.draw @fps_text
-      
-      @used_time += (Time.now - start_at).to_f
+    if holding? :left
+      @camera.x -= 10.0 / zoom
+    elsif holding? :right
+      @camera.x += 10.0 / zoom
+    end    
+    if holding? :up
+      @camera.y -= 10.0 / zoom
+    elsif holding? :down
+      @camera.y += 10.0 / zoom
     end
+      
+    mouse_position = @camera.rect.top_left + mouse_pos / zoom
+    @mouse_selection.tile = @map.tile_at_position(*mouse_position)
+    
+    @used_time += (Time.now - start_at).to_f
+    recalculate_fps
+
+    @fps_text.string = "Zoom: #{zoom} Tile: #{@mouse_selection.tile.grid_position} FPS: #{@fps.round} [#{@potential_fps.round}]"
+  end
+    
+  def render(win)
+    start_at = Time.now 
+    
+    win.with_view @camera do
+      @map.draw_on(win, @camera.rect)          
+
+      #@visible_objects.each {|obj| obj.draw_shadow_on win }      
+      #@visible_objects.each {|obj| obj.draw_on win }
+      @mouse_selection.draw_on window    
+    end    
+       
+    win.draw @fps_text
+    
+    @used_time += (Time.now - start_at).to_f
   end
   
   def init_fps
