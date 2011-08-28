@@ -203,15 +203,21 @@ class Map
 		 
 		 @tiles[y][x] = Tile::Earthwork.new [x, y] if y % 7 == 5
       end
+    end    
+  end
+  
+  def buffer_drawing
+    t = Time.now
+    @buffers = Hash.new {|h, k| h[k] = Ray::BufferRenderer.new :static, Ray::Vertex }
+    @tiles.each do |row|
+      row.reverse_each do |t|
+        t.sprites.each {|sprite| @buffers[t.y] << sprite }
+      end
     end
-
-    image = Image.new([to_rect.width * 2.5, to_rect.height])
-	#t = Time.now
-    #image_target image do |target|
-      #@tiles.each {|row| row.each {|tile| tile.draw_on(target) } }
-    #end
-    #p ["caching tile-map", Time.now - t]
-    #@sprite = sprite image 
+    puts "Buffered rows in #{Time.now - t}s"
+    t = Time.now
+    @buffers.each_value(&:update)
+    puts "Updated buffer rows in #{Time.now - t}s"
   end
   
   def tile_at_position(x, y)
@@ -256,8 +262,10 @@ class Map
   
   # Draws all tiles (only) visible in the window.
   def draw_on(window)
-    window.clear Color.new(30, 10, 10, 255)
-    each_visible(window.view) {|tile| tile.draw_on window }
+    window.clear Color.new(50, 25, 25, 255)
+    @buffers.each_pair do |y, buffer|
+      window.draw buffer
+    end
   end
 end
 
@@ -301,7 +309,7 @@ class Tile
     def sheet_pos; [0, 3]; end
 	
     def object_position
-	  @sprite.pos + [0, 4]
+	  @sprite.pos + [0, 6]
     end
   end
   
@@ -309,12 +317,22 @@ class Tile
   
   include Helper
   
-  attr_reader :objects
+  attr_reader :objects, :block_on_top, :block_underneath
   
   @@sprites = {}
   
+  def y; @sprite.y - @z; end
+  
   def object_position
     @sprite.pos
+  end
+  
+  def sprites
+    sprites = [@sprite]
+    objects.each {|o| sprites << o.instance_variable_get(:@shadow) }
+    objects.each {|o| sprites << o.instance_variable_get(:@sprite) }
+    sprites += @block_on_top.sprites if @block_on_top
+    sprites
   end
   
   def initialize(grid_position, options = {}) 
@@ -331,7 +349,8 @@ class Tile
 	@sprite.origin = [WIDTH / 2, HEIGHT / 2]
 	
 	@on_top_of = options[:on_top_of]
-	@sprite.y -= WIDTH / 2 if @on_top_of
+    @z = @on_top_of ? HEIGHT : 0
+	@sprite.y -= @z
     @objects = []
 	@block_on_top = @block_underneath = nil
   end
@@ -371,7 +390,7 @@ class World < Scene
   def setup
     @dynamic_objects = [] # Objects that need #update
     
-    @map = Map.new 50, 50
+    @map = Map.new 100, 100
     
     # Make some animated objects.
     #100.times do |i|
@@ -379,13 +398,13 @@ class World < Scene
     #end
 	    
     # Make some static objects.
-    50.times do
+    200.times do
       Tree.new(self, [rand(@map.grid_width), rand(@map.grid_height)])
     end
-   
-    @camera = window.default_view
     
-    #@player = Player.new(self, (window.size / 2) + [16, 0])    
+    @map.buffer_drawing
+   
+    @camera = window.default_view    
       
     @half_size = window.size / 2
       
@@ -417,7 +436,7 @@ class World < Scene
 		  end
 	  elsif delta < 0
 		  (-delta).times do
-			@camera.unzoom_by 2 unless zoom == 0.5
+			@camera.unzoom_by 2 unless zoom == 0.25
 		  end
 	  end
 	  
