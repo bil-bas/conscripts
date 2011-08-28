@@ -214,7 +214,7 @@ class Map
         t.sprites.each {|sprite| @buffers[t.y] << sprite }
       end
     end
-    puts "Buffered rows in #{Time.now - t}s"
+    puts "Buffered #{@buffers.size} rows in #{Time.now - t}s"
     t = Time.now
     @buffers.each_value(&:update)
     puts "Updated buffer rows in #{Time.now - t}s"
@@ -261,10 +261,14 @@ class Map
   end
   
   # Draws all tiles (only) visible in the window.
-  def draw_on(window)
+  def draw_on(window, min_y, max_y)
     window.clear Color.new(50, 25, 25, 255)
-    @buffers.each_pair do |y, buffer|
-      window.draw buffer
+    
+    min_y -= Tile::HEIGHT
+    max_y += Tile::HEIGHT * 2
+    
+    @buffers.to_a.each do |y, buffer|
+      window.draw buffer if y > min_y and y < max_y
     end
   end
 end
@@ -490,7 +494,7 @@ class World < Scene
       start_at = Time.now 
       
       win.with_view @camera do
-        @map.draw_on(win)  		
+        @map.draw_on(win, @camera.rect.y, @camera.rect.y + @camera.rect.height)  		
 
         #@visible_objects.each {|obj| obj.draw_shadow_on win }      
         #@visible_objects.each {|obj| obj.draw_on win }
