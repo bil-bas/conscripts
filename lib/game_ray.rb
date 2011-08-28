@@ -66,11 +66,13 @@ class GameObject
       img = Image.new [32, 32]
       center = img.size / 2
       img.map_with_pos! do |color, x, y|
-        Color.new(0, 0, 0, 160 - Vector2[x, y].distance(center) * 10)
+        brightness = Vector2[x, y].distance(center) * 10 + 90
+        Color.new(brightness, brightness, brightness) 
       end
       @@shadow = sprite img
 	  @@shadow.scale = [0.5, 0.25]
       @@shadow.origin = center
+      @@shadow.blend_mode = :multiply
     end
     
     @shadow = @@shadow.dup
@@ -262,7 +264,7 @@ class Map
   
   # Draws all tiles (only) visible in the window.
   def draw_on(window, min_y, max_y)
-    window.clear Color.new(50, 25, 25, 255)
+    window.clear Color.new(30, 10, 10, 255)
     
     min_y -= Tile::HEIGHT
     max_y += Tile::HEIGHT * 2
@@ -287,7 +289,7 @@ class Tile
   end
   
   class Foxhole < Tile
-    def sheet_pos; [0, 5]; end
+    def sheet_pos; [0, 4]; end
 	
 	def add_object(object)	  
 	  super(object)
@@ -394,7 +396,7 @@ class World < Scene
   def setup
     @dynamic_objects = [] # Objects that need #update
     
-    @map = Map.new 100, 100
+    @map = Map.new 50, 50
     
     # Make some animated objects.
     #100.times do |i|
