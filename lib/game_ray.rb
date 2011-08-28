@@ -33,12 +33,28 @@ class Map
          @tiles[y][x] = Tile::Earthwork.new [x, y] if y % 7 == 5
       end
     end
+    
+    t = Time.now
+    @buffers = Hash.new {|h, k| h[k] = Ray::BufferRenderer.new :static, Ray::Vertex }
+    @tiles.each do |row|
+      row.reverse_each do |t|
+        base_sprite = t.instance_variable_get(:@sprite)
+        @buffers[base_sprite.y] << base_sprite
+        upper_block = t.block_on_top
+        @buffers[base_sprite.y] << upper_block.instance_variable_get(:@sprite) if upper_block
+      end
+    end
+    puts "Buffered rows in #{Time.now - t}s"
+    t = Time.now
+    @buffers.each_value(&:update)
+    puts "Updated buffer rows in #{Time.now - t}s"
   end
   
   # Draws all tiles (only) visible in the window.
   def draw_on(window)
     window.clear Color.new(30, 10, 10, 255)
-    @tiles.each {|r| r.reverse_each {|t| t.draw_on window } }
+    #@tiles.each {|r| r.reverse_each {|t| t.draw_on window } }
+    @buffers.each_value {|buffer| window.draw buffer }
   end
 end
 
@@ -72,7 +88,7 @@ class Tile
   
   include Helper
   
-  attr_reader :objects
+  attr_reader :objects, :block_on_top, :block_underneath
   
   def initialize(grid_position, options = {}) 
     unless defined? @@sprite
@@ -106,9 +122,9 @@ class World < Scene
   attr_reader :map
   
   def setup   
-    @map = Map.new 100, 50     
+    @map = Map.new 200, 100
     @camera = window.default_view        
-    @camera.center = [@map.to_rect.center.x / 2, @map.to_rect.center.y / 2] 
+    @camera.center = [window.size.width / 2 + 240, window.size.width / 2 - 200] 
   end
   
   def register   
@@ -121,7 +137,7 @@ class World < Scene
 end
 
 
-Ray.game "2.5D" do
+Ray.game "2.5D", size: [800, 600] do
   register do
     on :quit, &method(:exit!)
     on :key_press, key(:escape), &method(:exit!)

@@ -34,16 +34,23 @@ class Map
          @tiles[y][x] = Tile::Earthwork.new [x, y] if y % 7 == 5
       end
     end
+    
+    t = Time.now
+    @buffers = Hash.new {|h, k| h[k] = [] }
+    @tiles.each {|r| r.reverse_each {|t| @buffers[t.y] << t } }
+    @records = @buffers.values.map {|b| $window.record { b.each {|t| t.draw }}}
+    puts "Recorded rows in #{Time.now - t}s"
   end
   
   # Draws all tiles (only) visible in the window.
-  def draw
+  def draw(offset_x, offset_y)
     $window.draw_quad -1000, -1000, BACKGROUND_COLOR,
               2000, -1000, BACKGROUND_COLOR,
               2000, 2000, BACKGROUND_COLOR,
               -1000, 2000, BACKGROUND_COLOR, -Float::INFINITY
               
-    @tiles.each {|row| row.reverse_each {|tile| tile.draw } }
+    #@tiles.each {|row| row.reverse_each {|tile| tile.draw } }
+    @records.each {|r| r.draw_rot offset_x, offset_y, 0, 0, 0, 0, 1, 1 }    
   end
 end
 
@@ -117,16 +124,16 @@ class Tile < GameObject
 end
 
 class World < GameState
-  attr_reader :map
+  attr_reader :map, :camera_offset_x, :camera_offset_y
   
   def setup
-    @map = Map.new 100, 50           
-    @camera_offset_x, @camera_offset_y = [0, @map.to_rect.center_y] 
+    @map = Map.new 200, 100           
+    @camera_offset_x, @camera_offset_y = [-240, 200] 
   end
   
-  def draw    
+  def draw   
     $window.translate @camera_offset_x, @camera_offset_y do
-      @map.draw    
+      @map.draw @camera_offset_x, @camera_offset_y   
     end
   end
 end
