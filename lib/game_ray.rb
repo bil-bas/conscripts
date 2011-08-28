@@ -185,7 +185,28 @@ class Map
   include Helper
   
   attr_reader :grid_width, :grid_height
+  
+  class TileRow
+    attr_reader :z_order
     
+    def initialize(z_order)
+      @z_order = z_order
+      @buffer = Ray::BufferRenderer.new :static, Ray::Vertex
+    end
+    
+    def <<(tile)
+      tile.sprites.each {|sprite| @buffer << sprite }
+    end
+    
+    def update_buffer
+      @buffer.update
+    end
+    
+    def draw_on(window)
+      window.draw @buffer
+    end
+  end  
+  
   def to_rect; Rect.new(0, 0, @grid_width * Tile::WIDTH, @grid_height * Tile::HEIGHT); end
 
   def initialize(grid_width, grid_height)
@@ -205,20 +226,24 @@ class Map
          
          @tiles[y][x] = Tile::Earthwork.new [x, y] if y % 7 == 5
       end
-    end    
+    end 
+
+    @tile_rows = []    
   end
   
   def buffer_drawing
+    @tile_rows.clear
+    
     t = Time.now
-    @buffers = Hash.new {|h, k| h[k] = Ray::BufferRenderer.new :static, Ray::Vertex }
+    @tile_rows = Hash.new {|h, k| h[k] = TileRow.new(k) }
     @tiles.each do |row|
       row.reverse_each do |t|
-        t.sprites.each {|sprite| @buffers[t.y] << sprite }
+        @tile_rows[t.y] << t
       end
     end
-    puts "Buffered #{@buffers.size} rows in #{Time.now - t}s"
+    puts "Buffered #{@tile_rows.size} rows in #{Time.now - t}s"
     t = Time.now
-    @buffers.each_value(&:update)
+    @tile_rows.each_value(&:update_buffer)
     puts "Updated buffer rows in #{Time.now - t}s"
   end
   
@@ -238,22 +263,6 @@ class Map
   
   # Yields every tile visible to the view.
   def each_visible(view, &block)
-=begin
-    rect = view.rect
-        
-    min_y = [((rect.y - 16) / 8).floor, 0].max
-    max_y = [((rect.y + rect.height) / 4.0).ceil, @tiles.size - 1].min
-    
-    visible_rows = @tiles[min_y..max_y]
-    if visible_rows
-      visible_rows.each do |row|
-        #min_x = [((rect.x - 16) / tile_size).floor, 0].max
-        #max_x = [((rect.x + rect.width) / 24).ceil, @tiles.first.size - 1].min
-        tiles = row#[min_x..max_x]
-        tiles.reverse_each {|tile| yield tile } if tiles
-      end
-    end
-=end
    @tiles.each {|r| r.reverse_each {|t| yield t } }
   end
   
@@ -263,17 +272,17 @@ class Map
     each_visible(view) {|tile| objects.push *tile.objects }
     objects
   end
-  
-  # Draws all tiles (only) visible in the window.
-  def draw_on(window, rect)
-    window.clear Color.new(30, 10, 10, 255)
-
+   
+  def tile_rows(rect)
     min_y = rect.y - Tile::HEIGHT
     max_y = rect.y + rect.height + Tile::HEIGHT * 2
     
-    @buffers.to_a.each do |y, buffer|
-      window.draw buffer if y > min_y and y < max_y
+    rows = []
+    @tile_rows.to_a.each do |y, buffer|
+      rows << buffer if y > min_y and y < max_y
     end
+    
+    rows
   end
 end
 
@@ -391,7 +400,7 @@ end
 class MouseSelection
   include Helper
   
-  attr_reader :tile
+  attr_reader :tile, :z_order
   
   def initialize
     unless defined? @@sprite
@@ -410,9 +419,11 @@ class MouseSelection
   def tile=(tile)
     @tile = tile
     position = tile.grid_position.to_vector2
-    
+        
     @sprite.x = (position.y + position.x) * Tile::WIDTH / 2
-    @sprite.y = (position.y - position.x) * Tile::HEIGHT / 2
+    y = (position.y - position.x) * Tile::HEIGHT / 2
+    @sprite.y = y 
+    @z_order = y
     
     case @tile
       when Tile::Foxhole
@@ -519,12 +530,13 @@ class World < Scene
   def render(win)
     start_at = Time.now 
     
-    win.with_view @camera do
-      @map.draw_on(win, @camera.rect)          
+    window.clear Color.new(30, 10, 10, 255)
+   
+    win.with_view @camera do         
+      objects = @map.tile_rows(@camera.rect) + [@mouse_selection]      
 
-      #@visible_objects.each {|obj| obj.draw_shadow_on win }      
-      #@visible_objects.each {|obj| obj.draw_on win }
-      @mouse_selection.draw_on window    
+      objects.sort_by!(&:z_order)   
+      objects.each {|o| o.draw_on win }
     end    
        
     win.draw @fps_text
